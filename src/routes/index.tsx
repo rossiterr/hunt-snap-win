@@ -279,7 +279,7 @@ function Index() {
 
             <Button
               onClick={startGame}
-              className="mt-6 h-14 w-full rounded-2xl bg-[var(--gradient-hero)] text-base font-bold text-primary-foreground shadow-[var(--shadow-glow)] transition hover:brightness-110"
+              className="mt-6 h-14 w-full rounded-2xl btn-hero text-base font-bold shadow-[var(--shadow-glow)]"
             >
               Começar caçada ▶
             </Button>
@@ -387,7 +387,7 @@ function Index() {
               {phase === "playing" && (
                 <Button
                   onClick={capture}
-                  className="h-14 flex-1 rounded-2xl bg-[var(--gradient-hero)] text-base font-bold text-primary-foreground shadow-[var(--shadow-glow)] hover:brightness-110"
+                  className="h-14 flex-1 rounded-2xl btn-hero text-base font-bold shadow-[var(--shadow-glow)]"
                 >
                   📸 Capturar
                 </Button>
@@ -396,7 +396,7 @@ function Index() {
                 <>
                   <Button
                     onClick={judge}
-                    className="h-14 flex-1 rounded-2xl bg-[var(--gradient-hero)] text-base font-bold text-primary-foreground shadow-[var(--shadow-glow)] hover:brightness-110"
+                    className="h-14 flex-1 rounded-2xl btn-hero text-base font-bold shadow-[var(--shadow-glow)]"
                   >
                     ✅ Enviar para IA
                   </Button>
@@ -413,7 +413,7 @@ function Index() {
                 <>
                   <Button
                     onClick={nextRound}
-                    className="h-14 flex-1 rounded-2xl bg-[var(--gradient-hero)] text-base font-bold text-primary-foreground shadow-[var(--shadow-glow)] hover:brightness-110"
+                    className="h-14 flex-1 rounded-2xl btn-hero text-base font-bold shadow-[var(--shadow-glow)]"
                   >
                     Próximo desafio →
                   </Button>
