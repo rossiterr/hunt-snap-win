@@ -64,14 +64,23 @@ function Index() {
   const startCamera = useCallback(async () => {
     setError(null);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment", width: 1280, height: 720 },
-        audio: false,
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
+      let stream = streamRef.current;
+      if (!stream || stream.getTracks().every((t) => t.readyState === "ended")) {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment", width: 1280, height: 720 },
+          audio: false,
+        });
+        streamRef.current = stream;
+      }
+      if (videoRef.current && videoRef.current.srcObject !== stream) {
         videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+      }
+      if (videoRef.current) {
+        try {
+          await videoRef.current.play();
+        } catch {
+          /* autoplay interruption ignored */
+        }
       }
     } catch (e) {
       console.error(e);
@@ -82,6 +91,20 @@ function Index() {
   }, []);
 
   useEffect(() => () => stopCamera(), [stopCamera]);
+
+  // Reatacha o stream ao <video> sempre que voltamos ao modo "playing"
+  // (o elemento é remontado porque alternamos entre <img> capturado e <video>).
+  useEffect(() => {
+    if (phase !== "playing") return;
+    const v = videoRef.current;
+    const s = streamRef.current;
+    if (v && s && v.srcObject !== s) {
+      v.srcObject = s;
+      v.play().catch(() => {});
+    } else if (!s) {
+      startCamera();
+    }
+  }, [phase, startCamera]);
 
   // Timer do round
   useEffect(() => {
@@ -131,6 +154,17 @@ function Index() {
     setVerdict(null);
     setCapturedImage(null);
     setPhase("playing");
+    // garante que o stream volte a ser exibido no <video> remontado
+    requestAnimationFrame(() => {
+      const v = videoRef.current;
+      const s = streamRef.current;
+      if (v && s) {
+        v.srcObject = s;
+        v.play().catch(() => {});
+      } else {
+        startCamera();
+      }
+    });
   }
 
   function capture() {
