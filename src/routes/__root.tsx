@@ -33,10 +33,14 @@ export const Route = createRootRoute({
       { name: "description", content: "Jogo de visão computacional: a IA valida se você encontrou o objeto pedido usando sua câmera." },
       { name: "author", content: "Tendências em Mídias" },
       { property: "og:title", content: "Caça ao Tesouro com IA" },
-      { property: "og:description", content: "Aponte a câmera, tire a foto e deixe a IA julgar se você achou o objeto!" },
+      { property: "og:description", content: "Jogo de visão computacional: a IA valida se você encontrou o objeto pedido usando sua câmera." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "Caça ao Tesouro com IA" },
+      { name: "twitter:description", content: "Jogo de visão computacional: a IA valida se você encontrou o objeto pedido usando sua câmera." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/d6c080c0-ae40-41d6-8069-5c73cfbbe9fe/id-preview-daa66b5b--00ec923f-80a5-487b-9ded-32803ec7aefb.lovable.app-1777329165026.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/d6c080c0-ae40-41d6-8069-5c73cfbbe9fe/id-preview-daa66b5b--00ec923f-80a5-487b-9ded-32803ec7aefb.lovable.app-1777329165026.png" },
     ],
     links: [
       {
