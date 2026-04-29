@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useObjectDetection } from "@/hooks/useObjectDetection";
+import { DetectionOverlay } from "@/components/DetectionOverlay";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -40,6 +42,67 @@ function pickChallenge(exclude?: string) {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
+/**
+ * Mapeia o texto do desafio para classes do COCO-SSD (80 classes).
+ * Quando há match, destacamos a bbox em verde — feedback em tempo real.
+ * Quando não há match, o TF.js só desenha as caixas dos objetos vistos
+ * (uso pedagógico) e o veredito final fica com o VLM no clique.
+ */
+const COCO_HINTS: Record<string, string[]> = {
+  caneca: ["cup"],
+  copo: ["cup", "wine glass"],
+  xícara: ["cup"],
+  garrafa: ["bottle"],
+  água: ["bottle"],
+  livro: ["book"],
+  fone: ["cell phone"], // sem classe direta; deixamos vazio na prática
+  celular: ["cell phone"],
+  telefone: ["cell phone"],
+  laptop: ["laptop"],
+  notebook: ["laptop"],
+  computador: ["laptop", "tv"],
+  teclado: ["keyboard"],
+  mouse: ["mouse"],
+  monitor: ["tv"],
+  tv: ["tv"],
+  controle: ["remote"],
+  remoto: ["remote"],
+  relógio: ["clock"],
+  planta: ["potted plant"],
+  vaso: ["potted plant", "vase"],
+  cadeira: ["chair"],
+  sofá: ["couch"],
+  cama: ["bed"],
+  mesa: ["dining table"],
+  tesoura: ["scissors"],
+  faca: ["knife"],
+  garfo: ["fork"],
+  colher: ["spoon"],
+  banana: ["banana"],
+  maçã: ["apple"],
+  laranja: ["orange"],
+  bolo: ["cake"],
+  pizza: ["pizza"],
+  cachorro: ["dog"],
+  gato: ["cat"],
+  pessoa: ["person"],
+  mochila: ["backpack"],
+  bolsa: ["handbag"],
+  guarda: ["umbrella"],
+  chuva: ["umbrella"],
+  gravata: ["tie"],
+  óculos: [], // não está no COCO
+};
+
+function challengeToCocoClasses(challenge: string): string[] {
+  const lower = challenge.toLowerCase();
+  const matches = new Set<string>();
+  for (const [keyword, classes] of Object.entries(COCO_HINTS)) {
+    if (lower.includes(keyword)) classes.forEach((c) => matches.add(c));
+  }
+  return Array.from(matches);
+}
+
 function Index() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -55,6 +118,18 @@ function Index() {
   const [error, setError] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState(20);
   const [flash, setFlash] = useState<"success" | "fail" | null>(null);
+  const [showBoxes, setShowBoxes] = useState(true);
+
+  // Detecção em tempo real (só roda enquanto está jogando e overlay ligado)
+  const detectionEnabled = phase === "playing" && showBoxes;
+  const { detections, status: detStatus } = useObjectDetection(
+    videoRef,
+    detectionEnabled,
+  );
+  const highlightClasses = challengeToCocoClasses(challenge);
+  const hasMatchInFrame = detections.some((d) =>
+    highlightClasses.includes(d.class),
+  );
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
