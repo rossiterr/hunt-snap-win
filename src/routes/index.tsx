@@ -6,27 +6,6 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-const CHALLENGES = [
-  "uma caneca",
-  "algo verde",
-  "um livro",
-  "um fone de ouvido",
-  "uma garrafa de água",
-  "uma caneta ou lápis",
-  "um relógio",
-  "algo vermelho",
-  "uma planta",
-  "um celular",
-  "uma chave",
-  "óculos",
-  "um cartão ou crachá",
-  "algo redondo",
-  "uma mochila ou bolsa",
-  "um controle remoto",
-  "algo de metal brilhante",
-  "uma folha de papel escrita",
-];
-
 type Verdict = {
   match: boolean;
   confidence: number;
@@ -35,19 +14,15 @@ type Verdict = {
 
 type Phase = "idle" | "playing" | "captured" | "judging" | "result";
 
-function pickChallenge(exclude?: string) {
-  const pool = CHALLENGES.filter((c) => c !== exclude);
-  return pool[Math.floor(Math.random() * pool.length)];
-}
-
 function Index() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
   const [phase, setPhase] = useState<Phase>("idle");
-  const [challenge, setChallenge] = useState<string>(CHALLENGES[0]);
-  const [customChallenge, setCustomChallenge] = useState("");
+  const [challenge, setChallenge] = useState<string>("");
+  const [context, setContext] = useState("");
+  const [previousChallenges, setPreviousChallenges] = useState<string[]>([]);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [verdict, setVerdict] = useState<Verdict | null>(null);
   const [score, setScore] = useState(0);
@@ -55,6 +30,7 @@ function Index() {
   const [error, setError] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState(20);
   const [flash, setFlash] = useState<"success" | "fail" | null>(null);
+  const [loadingChallenge, setLoadingChallenge] = useState(false);
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -135,36 +111,75 @@ function Index() {
     setPhase("result");
   }
 
-  async function startGame() {
-    const custom = customChallenge.trim();
-    const chosen = custom.length > 0 ? custom : pickChallenge();
-    setChallenge(chosen);
-    setRound((r) => r + 1);
-    setVerdict(null);
-    setCapturedImage(null);
-    setPhase("playing");
-    await startCamera();
+  async function fetchChallenge(roundNumber: number, history: string[]) {
+    // Dificuldade cresce com o round: 1,1,2,2,3,3,4,4,5,5...
+    const difficulty = Math.min(5, Math.ceil(roundNumber / 2));
+    const res = await fetch("/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        context: context.trim(),
+        difficulty,
+        previous: history,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Erro ao gerar desafio");
+    return data.challenge as string;
   }
 
-  function nextRound() {
-    setCustomChallenge("");
-    const next = pickChallenge(challenge);
-    setChallenge(next);
-    setRound((r) => r + 1);
-    setVerdict(null);
-    setCapturedImage(null);
-    setPhase("playing");
-    // garante que o stream volte a ser exibido no <video> remontado
-    requestAnimationFrame(() => {
-      const v = videoRef.current;
-      const s = streamRef.current;
-      if (v && s) {
-        v.srcObject = s;
-        v.play().catch(() => {});
-      } else {
-        startCamera();
-      }
-    });
+  async function startGame() {
+    const ctx = context.trim();
+    if (!ctx) {
+      setError("Descreva onde você está antes de começar.");
+      return;
+    }
+    setError(null);
+    setLoadingChallenge(true);
+    try {
+      const next = await fetchChallenge(1, []);
+      setChallenge(next);
+      setPreviousChallenges([next]);
+      setRound(1);
+      setVerdict(null);
+      setCapturedImage(null);
+      setPhase("playing");
+      await startCamera();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erro ao iniciar");
+    } finally {
+      setLoadingChallenge(false);
+    }
+  }
+
+  async function nextRound() {
+    setLoadingChallenge(true);
+    setError(null);
+    try {
+      const newRound = round + 1;
+      const next = await fetchChallenge(newRound, previousChallenges);
+      setChallenge(next);
+      setPreviousChallenges((p) => [...p, next]);
+      setRound(newRound);
+      setVerdict(null);
+      setCapturedImage(null);
+      setPhase("playing");
+      requestAnimationFrame(() => {
+        const v = videoRef.current;
+        const s = streamRef.current;
+        if (v && s) {
+          v.srcObject = s;
+          v.play().catch(() => {});
+        } else {
+          startCamera();
+        }
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erro ao gerar próximo desafio");
+      setPhase("result");
+    } finally {
+      setLoadingChallenge(false);
+    }
   }
 
   function capture() {
@@ -267,21 +282,25 @@ function Index() {
 
             <div className="mt-6">
               <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Desafio customizado (opcional)
+                Onde você está? (contexto)
               </label>
               <input
-                value={customChallenge}
-                onChange={(e) => setCustomChallenge(e.target.value)}
-                placeholder='ex: "algo amarelo", "um tênis"'
+                value={context}
+                onChange={(e) => setContext(e.target.value)}
+                placeholder='ex: "minha cozinha", "sala de aula", "escritório"'
                 className="w-full rounded-xl border border-border bg-background/60 px-4 py-3 text-sm outline-none ring-primary/40 transition focus:ring-2"
               />
+              <p className="mt-2 text-xs text-muted-foreground">
+                A IA vai escolher objetos que provavelmente existem nesse lugar — começando fáceis e ficando mais difíceis a cada round.
+              </p>
             </div>
 
             <Button
               onClick={startGame}
+              disabled={loadingChallenge}
               className="mt-6 h-14 w-full rounded-2xl btn-hero text-base font-bold shadow-[var(--shadow-glow)]"
             >
-              Começar caçada ▶
+              {loadingChallenge ? "Gerando desafio..." : "Começar caçada ▶"}
             </Button>
             {error && (
               <p className="mt-3 text-center text-sm text-destructive">{error}</p>
@@ -297,10 +316,13 @@ function Index() {
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-[10px] font-bold uppercase tracking-widest text-accent">
-                    Encontre
+                    Round {round} · Encontre
                   </div>
                   <div className="text-lg font-black md:text-2xl">
                     {challenge}
+                  </div>
+                  <div className="mt-1 text-[10px] uppercase tracking-widest text-muted-foreground">
+                    Contexto: {context}
                   </div>
                 </div>
                 {phase === "playing" && (
@@ -413,14 +435,17 @@ function Index() {
                 <>
                   <Button
                     onClick={nextRound}
+                    disabled={loadingChallenge}
                     className="h-14 flex-1 rounded-2xl btn-hero text-base font-bold shadow-[var(--shadow-glow)]"
                   >
-                    Próximo desafio →
+                    {loadingChallenge ? "Gerando..." : "Próximo desafio →"}
                   </Button>
                   <Button
                     onClick={() => {
                       stopCamera();
                       setPhase("idle");
+                      setPreviousChallenges([]);
+                      setRound(0);
                     }}
                     variant="outline"
                     className="h-14 rounded-2xl border-border bg-card/60 px-6 text-base font-bold"
