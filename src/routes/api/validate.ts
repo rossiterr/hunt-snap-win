@@ -140,4 +140,4 @@ export const Route = createFileRoute("/api/validate")({
       },
     },
   },
-});
+} as any);
