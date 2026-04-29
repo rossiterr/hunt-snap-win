@@ -412,6 +412,42 @@ function Index() {
                     className="h-full w-full object-cover"
                   />
                 )}
+                {/* Overlay de detecção em tempo real (TF.js / COCO-SSD) */}
+                {phase === "playing" && showBoxes && !capturedImage && (
+                  <DetectionOverlay
+                    detections={detections}
+                    videoRef={videoRef}
+                    highlightClasses={highlightClasses}
+                  />
+                )}
+                {/* Badge de status do modelo + indicador de match em tempo real */}
+                {phase === "playing" && (
+                  <div className="pointer-events-auto absolute left-3 top-3 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowBoxes((s) => !s)}
+                      className={`rounded-full border border-white/20 px-3 py-1 text-[11px] font-bold uppercase tracking-wider backdrop-blur transition ${
+                        showBoxes
+                          ? "bg-primary/80 text-primary-foreground"
+                          : "bg-black/60 text-white/80"
+                      }`}
+                    >
+                      {showBoxes ? "🟢 IA local on" : "⚪ IA local off"}
+                    </button>
+                    {showBoxes && (
+                      <span className="rounded-full border border-white/20 bg-black/60 px-3 py-1 text-[11px] font-semibold text-white/90 backdrop-blur">
+                        {detStatus === "loading" && "carregando modelo…"}
+                        {detStatus === "ready" &&
+                          (highlightClasses.length === 0
+                            ? "modelo não cobre este desafio — use o juiz IA"
+                            : hasMatchInFrame
+                              ? "✨ candidato detectado!"
+                              : `procurando: ${highlightClasses.join(", ")}`)}
+                        {detStatus === "error" && "modelo falhou"}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
 
               {phase === "judging" && (
