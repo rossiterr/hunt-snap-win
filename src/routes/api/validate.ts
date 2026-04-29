@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 export const Route = createFileRoute("/api/validate")({
   server: {
     handlers: {
-      POST: async ({ request }) => {
+      POST: async ({ request }: { request: Request }) => {
         try {
           const { image, target } = (await request.json()) as {
             image: string;
@@ -140,4 +140,4 @@ export const Route = createFileRoute("/api/validate")({
       },
     },
   },
-});
+} as any);
