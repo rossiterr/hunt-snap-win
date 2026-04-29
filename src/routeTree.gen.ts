@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiValidateRouteImport } from './routes/api.validate'
+import { Route as ApiGenerateRouteImport } from './routes/api.generate'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,30 +23,39 @@ const ApiValidateRoute = ApiValidateRouteImport.update({
   path: '/api/validate',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiGenerateRoute = ApiGenerateRouteImport.update({
+  id: '/api/generate',
+  path: '/api/generate',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/generate': typeof ApiGenerateRoute
   '/api/validate': typeof ApiValidateRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/generate': typeof ApiGenerateRoute
   '/api/validate': typeof ApiValidateRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/generate': typeof ApiGenerateRoute
   '/api/validate': typeof ApiValidateRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/validate'
+  fullPaths: '/' | '/api/generate' | '/api/validate'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/validate'
-  id: '__root__' | '/' | '/api/validate'
+  to: '/' | '/api/generate' | '/api/validate'
+  id: '__root__' | '/' | '/api/generate' | '/api/validate'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiGenerateRoute: typeof ApiGenerateRoute
   ApiValidateRoute: typeof ApiValidateRoute
 }
 
@@ -65,22 +75,21 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiValidateRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/generate': {
+      id: '/api/generate'
+      path: '/api/generate'
+      fullPath: '/api/generate'
+      preLoaderRoute: typeof ApiGenerateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiGenerateRoute: ApiGenerateRoute,
   ApiValidateRoute: ApiValidateRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}
