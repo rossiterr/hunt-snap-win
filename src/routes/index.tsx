@@ -12,7 +12,9 @@ type Verdict = {
   reason: string;
 };
 
-type Phase = "idle" | "playing" | "captured" | "judging" | "result";
+type Phase = "idle" | "playing" | "captured" | "judging" | "result" | "gameover";
+
+const MAX_LIVES = 3;
 
 function Index() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -26,6 +28,7 @@ function Index() {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [verdict, setVerdict] = useState<Verdict | null>(null);
   const [score, setScore] = useState(0);
+  const [lives, setLives] = useState(MAX_LIVES);
   const [round, setRound] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState(20);
@@ -101,6 +104,8 @@ function Index() {
   }, [phase, round]);
 
   function handleTimeout() {
+    const newLives = lives - 1;
+    setLives(newLives);
     setVerdict({
       match: false,
       confidence: 1,
@@ -108,7 +113,7 @@ function Index() {
     });
     setFlash("fail");
     setTimeout(() => setFlash(null), 900);
-    setPhase("result");
+    setPhase(newLives <= 0 ? "gameover" : "result");
   }
 
   async function fetchChallenge(roundNumber: number, history: string[]) {
@@ -141,6 +146,8 @@ function Index() {
       setChallenge(next);
       setPreviousChallenges([next]);
       setRound(1);
+      setScore(0);
+      setLives(MAX_LIVES);
       setVerdict(null);
       setCapturedImage(null);
       setPhase("playing");
@@ -217,14 +224,17 @@ function Index() {
       const v = data as Verdict;
       setVerdict(v);
       if (v.match) {
-        const points = Math.max(10, Math.round(50 * (v.confidence || 0.5) + timeLeft));
-        setScore((s) => s + points);
+        setScore((s) => s + 1);
         setFlash("success");
+        setTimeout(() => setFlash(null), 900);
+        setPhase("result");
       } else {
+        const newLives = lives - 1;
+        setLives(newLives);
         setFlash("fail");
+        setTimeout(() => setFlash(null), 900);
+        setPhase(newLives <= 0 ? "gameover" : "result");
       }
-      setTimeout(() => setFlash(null), 900);
-      setPhase("result");
     } catch (e) {
       console.error(e);
       setError("Falha de rede ao contatar a IA.");
@@ -251,12 +261,26 @@ function Index() {
               Visão Computacional + Games · Tendências em Mídias
             </p>
           </div>
-          <div className="rounded-2xl border border-border bg-card/60 px-4 py-2 text-right shadow-[var(--shadow-glow)] backdrop-blur">
-            <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-              Pontos
+          <div className="flex items-center gap-2">
+            <div className="rounded-2xl border border-border bg-card/60 px-4 py-2 text-right shadow-[var(--shadow-glow)] backdrop-blur">
+              <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                Acertos
+              </div>
+              <div className="text-2xl font-black text-primary md:text-3xl">
+                {score}
+              </div>
             </div>
-            <div className="text-2xl font-black text-primary md:text-3xl">
-              {score}
+            <div className="rounded-2xl border border-border bg-card/60 px-4 py-2 text-right shadow-[var(--shadow-glow)] backdrop-blur">
+              <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                Vidas
+              </div>
+              <div className="text-2xl md:text-3xl tabular-nums" aria-label={`${lives} vidas`}>
+                {Array.from({ length: MAX_LIVES }).map((_, i) => (
+                  <span key={i} className={i < lives ? "" : "opacity-20 grayscale"}>
+                    ❤️
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
         </header>
@@ -268,15 +292,15 @@ function Index() {
             <ol className="mt-4 space-y-2 text-sm text-muted-foreground md:text-base">
               <li>
                 <span className="mr-2 font-bold text-accent">1.</span>
-                A IA sorteia (ou você escolhe) um objeto para encontrar.
+                Você tem <strong>3 vidas</strong>. Cada erro ou tempo esgotado custa uma vida.
               </li>
               <li>
                 <span className="mr-2 font-bold text-accent">2.</span>
-                Você tem 20s para apontar a câmera e tirar uma foto.
+                A cada round, a IA escolhe um objeto do seu contexto. Você tem 20s para fotografá-lo.
               </li>
               <li>
                 <span className="mr-2 font-bold text-accent">3.</span>
-                A IA julga a imagem e libera pontos se você acertou.
+                Sua pontuação final é o número de acertos antes de perder as 3 vidas.
               </li>
             </ol>
 
@@ -309,7 +333,7 @@ function Index() {
         )}
 
         {/* Playing / Captured / Judging / Result */}
-        {phase !== "idle" && (
+        {phase !== "idle" && phase !== "gameover" && (
           <section className="space-y-4">
             {/* Challenge card */}
             <div className="animate-pop-in rounded-3xl border border-border bg-card/70 p-5 backdrop-blur">
@@ -446,6 +470,8 @@ function Index() {
                       setPhase("idle");
                       setPreviousChallenges([]);
                       setRound(0);
+                      setScore(0);
+                      setLives(MAX_LIVES);
                     }}
                     variant="outline"
                     className="h-14 rounded-2xl border-border bg-card/60 px-6 text-base font-bold"
@@ -459,6 +485,45 @@ function Index() {
             {error && (
               <p className="text-center text-sm text-destructive">{error}</p>
             )}
+          </section>
+        )}
+
+        {/* Game over */}
+        {phase === "gameover" && (
+          <section className="animate-pop-in rounded-3xl border border-border bg-card/70 p-8 text-center shadow-[var(--shadow-glow-pink)] backdrop-blur md:p-12">
+            <div className="text-6xl md:text-7xl">💀</div>
+            <h2 className="mt-3 text-3xl font-black md:text-4xl">Fim de jogo</h2>
+            <p className="mt-2 text-sm text-muted-foreground md:text-base">
+              Você ficou sem vidas.
+            </p>
+            <div className="mx-auto mt-6 inline-block rounded-2xl border border-border bg-background/60 px-8 py-4">
+              <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                Pontuação final
+              </div>
+              <div className="text-5xl font-black text-primary md:text-6xl">
+                {score}
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                {score === 1 ? "objeto encontrado" : "objetos encontrados"}
+              </div>
+            </div>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <Button
+                onClick={() => {
+                  stopCamera();
+                  setPhase("idle");
+                  setPreviousChallenges([]);
+                  setRound(0);
+                  setScore(0);
+                  setLives(MAX_LIVES);
+                  setVerdict(null);
+                  setCapturedImage(null);
+                }}
+                className="h-14 rounded-2xl btn-hero px-8 text-base font-bold shadow-[var(--shadow-glow)]"
+              >
+                Jogar novamente ↺
+              </Button>
+            </div>
           </section>
         )}
 
